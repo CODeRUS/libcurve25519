@@ -17,7 +17,7 @@ void curve25519_keygen(unsigned char* curve25519_pubkey_out,
      "edwards" y-coordinate:
 
      mont_x = (ed_y + 1) / (1 - ed_y)
-     
+
      with projective coordinates:
 
      mont_x = (ed_y + ed_z) / (ed_z - ed_y)
@@ -27,7 +27,7 @@ void curve25519_keygen(unsigned char* curve25519_pubkey_out,
 
   ge_scalarmult_base(&ed, curve25519_privkey_in);
   fe_add(ed_y_plus_one, ed.Y, ed.Z);
-  fe_sub(one_minus_ed_y, ed.Z, ed.Y);  
+  fe_sub(one_minus_ed_y, ed.Z, ed.Y);
   fe_invert(inv_one_minus_ed_y, one_minus_ed_y);
   fe_mul(mont_x, ed_y_plus_one, inv_one_minus_ed_y);
   fe_tobytes(curve25519_pubkey_out, mont_x);
@@ -40,10 +40,10 @@ int curve25519_sign(unsigned char* signature_out,
 {
   ge_p3 ed_pubkey_point; /* Ed25519 pubkey point */
   unsigned char ed_pubkey[32]; /* Ed25519 encoded pubkey */
-  unsigned char sigbuf[MAX_MSG_LEN + 128]; /* working buffer */
+  unsigned char *sigbuf; /* working buffer */
   unsigned char sign_bit = 0;
 
-  if (msg_len > MAX_MSG_LEN) {
+  if ((sigbuf = malloc(msg_len + 128)) == 0) {
     memset(signature_out, 0, 64);
     return -1;
   }
@@ -61,6 +61,8 @@ int curve25519_sign(unsigned char* signature_out,
   /* Encode the sign bit into signature (in unused high bit of S) */
    signature_out[63] &= 0x7F; /* bit should be zero already, but just in case */
    signature_out[63] |= sign_bit;
+
+   free(sigbuf);
    return 0;
 }
 
@@ -73,11 +75,18 @@ int curve25519_verify(const unsigned char* signature,
   fe ed_y;
   unsigned char ed_pubkey[32];
   unsigned long long some_retval;
-  unsigned char verifybuf[MAX_MSG_LEN + 64]; /* working buffer */
-  unsigned char verifybuf2[MAX_MSG_LEN + 64]; /* working buffer #2 */
+  unsigned char *verifybuf = NULL; /* working buffer */
+  unsigned char *verifybuf2 = NULL; /* working buffer #2 */
+  int result;
 
-  if (msg_len > MAX_MSG_LEN) {
-    return -1;
+  if ((verifybuf = malloc(msg_len + 64)) == 0) {
+    result = -1;
+    goto err;
+  }
+
+  if ((verifybuf2 = malloc(msg_len + 64)) == 0) {
+    result = -1;
+    goto err;
   }
 
   /* Convert the Curve25519 public key into an Ed25519 public key.  In
@@ -109,8 +118,20 @@ int curve25519_verify(const unsigned char* signature,
   /* Then perform a normal Ed25519 verification, return 0 on success */
   /* The below call has a strange API: */
   /* verifybuf = R || S || message */
-  /* verifybuf2 = internal to next call gets a copy of verifybuf, S gets 
+  /* verifybuf2 = internal to next call gets a copy of verifybuf, S gets
      replaced with pubkey for hashing, then the whole thing gets zeroized
      (if bad sig), or contains a copy of msg (good sig) */
-  return crypto_sign_open(verifybuf2, &some_retval, verifybuf, 64 + msg_len, ed_pubkey);
+  result = crypto_sign_open(verifybuf2, &some_retval, verifybuf, 64 + msg_len, ed_pubkey);
+
+  err:
+
+  if (verifybuf != NULL) {
+    free(verifybuf);
+  }
+
+  if (verifybuf2 != NULL) {
+    free(verifybuf2);
+  }
+
+  return result;
 }
