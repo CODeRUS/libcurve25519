@@ -35,7 +35,7 @@ void Curve25519::calculateAgreement(const char *myprivate, const char *theirpubl
 
 int Curve25519::verifySignature(const unsigned char *publickey, const unsigned char *message, const unsigned long messagelen, const unsigned char *signature)
 {
-    return curve25519_verify(signature, publickey, message, messagelen);
+    return curve25519_verify(signature, publickey, message, messagelen) == 0;
 }
 
 void Curve25519::calculateSignature(const unsigned char *privatekey, const unsigned char *message, const unsigned long messagelen, const unsigned char *random, unsigned char *signature)
