@@ -12,7 +12,7 @@ public:
     static void generatePublicKey(const char *privatekey, char *mypublic);
     static void calculateAgreement(const char *myprivate, const char *theirpublic, char *shared_key);
     static void calculateSignature(const unsigned char *privatekey, const unsigned char *message, const unsigned long messagelen, const unsigned char *random, unsigned char *signature);
-    static int verifySignature(const unsigned char *publickey, const unsigned char *message, const unsigned long messagelen, const unsigned char *signature);
+    static bool verifySignature(const unsigned char *publickey, const unsigned char *message, const unsigned long messagelen, const unsigned char *signature);
 };
 
 #endif  // CURVE_DLL_H
